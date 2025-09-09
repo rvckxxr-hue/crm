@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="pl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM dla Pośrednika Finansowego</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .modal { transition: opacity 0.25s ease; }
+        .modal-content { transition: transform 0.25s ease; }
+        
+        /* Ciemny pasek przewijania */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; } /* slate-800 */
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; } /* slate-600 */
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; } /* slate-500 */
+
+      /* Style dla Dashboardu i Widgetów */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.widget {
+    background-color: #1e293b; /* slate-800 */
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #334155; /* slate-700 */
+}
+
+.widget-title {
+    font-weight: 600;
+    color: #cbd5e1; /* slate-300 */
+    margin-bottom: 1rem;
+}
+
+/* Styl dla widgetu z zadaniami - zajmie 2 kolumny */
+.widget.col-span-2 {
+    grid-column: span 2 / span 2;
+}
+
+.task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.task-item {
+    background-color: #334155; /* slate-700 */
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.task-item.overdue {
+    border-left: 4px solid #f87171; /* red-400 */
+}
+
+.task-item.today {
+    border-left: 4px solid #facc15; /* yellow-400 */
+}
+
+.task-customer-link {
+    font-weight: 500;
+    color: #93c5fd; /* blue-300 */
+    cursor: pointer;
+    text-decoration: none;
+}
+.task-customer-link:hover {
+    text-decoration: underline;
+}
+
+        /* Styl dla aktywnego filtra/zakładki */
+        .filter-item.active, .view-btn.active {
+            background-color: rgba(59, 130, 246, 0.2); 
+            color: #93c5fd; 
+            font-weight: 600;
+        }
+        
+        /* Style for tags */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 9999px;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        .tag.selected {
+            opacity: 1;
+            box-shadow: 0 0 0 2px white;
+        }
+      /* Style dla Tablicy Kanban */
+.kanban-board {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto; /* Umożliwia poziome przewijanie kolumn */
+    padding-bottom: 1rem; /* Daje trochę miejsca na pasek przewijania */
+    height: 100%;
+}
+
+.kanban-column {
+    flex: 0 0 300px; /* Kolumny nie rozciągają się, mają stałą szerokość 300px */
+    background-color: #1e293b; /* slate-800 */
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+}
+
+.kanban-column-header {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #cbd5e1; /* slate-300 */
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.kanban-column-header .deal-count {
+    font-size: 0.875rem;
+    background-color: #334155; /* slate-700 */
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+}
+
+.kanban-cards {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.kanban-card {
+    background-color: #334155; /* slate-700 */
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border-left: 4px solid #3b82f6; /* blue-500 */
+    cursor: grab;
+    transition: background-color 0.2s;
+}
+
+.kanban-card:hover {
+    background-color: #475569; /* slate-600 */
+}
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-300">
+
+    <div id="app" class="h-screen w-full flex flex-col">
+
+        <header class="bg-slate-800/70 backdrop-blur-sm border-b border-slate-700 p-4 flex justify-between items-center z-10 sticky top-0">
+            <h1 class="text-2xl font-bold text-slate-100">CRM Finansowy</h1>
+            <button id="add-customer-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 transition-shadow">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                Dodaj Nową Sprawę
+            </button>
+        </header>
+
+        <main class="flex-grow flex overflow-hidden">
+
+            <div class="w-80 bg-slate-800 border-r border-slate-700 flex flex-col flex-shrink-0">
+                <div class="p-4 border-b border-slate-700">
+                    <input type="text" id="search-input" placeholder="Szukaj po nazwisku..." class="w-full px-3 py-2 border bg-slate-700 border-slate-600 text-slate-200 placeholder:text-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <nav id="filter-menu" class="flex-grow overflow-y-auto p-2 space-y-4">
+                    </nav>
+            </div>
+
+            <div class="flex-grow flex flex-col overflow-hidden">
+                <div id="main-nav" class="p-2 border-b border-slate-700 flex space-x-2">
+                    <button data-view="dashboard-view" class="view-btn px-4 py-2 rounded-md text-sm font-medium transition-colors">Dashboard</button>
+                    <button data-view="customer-list-view" class="view-btn px-4 py-2 rounded-md text-sm font-medium transition-colors">Lista Spraw</button>
+                    <button data-view="kanban-view" class="view-btn px-4 py-2 rounded-md text-sm font-medium transition-colors">Kanban</button>
+                    <button data-view="reports-view" class="view-btn px-4 py-2 rounded-md text-sm font-medium transition-colors">Raporty</button>
+                </div>
+
+                <div id="dashboard-view" class="app-view hidden flex-grow overflow-y-auto p-4 md:p-6"></div>
+                <div id="customer-list-view" class="app-view hidden flex-grow overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start"></div>
+                <div id="kanban-view" class="app-view hidden flex-grow overflow-y-auto p-4 md:p-6"></div>
+                <div id="reports-view" class="app-view hidden flex-grow overflow-y-auto p-4 md:p-6"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="customer-details-container" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-30 grid place-items-center p-4 md:p-8">
+        <div id="customer-details" class="w-full max-w-3xl bg-slate-800/90 border border-slate-700 max-h-[90vh] overflow-y-auto shadow-2xl shadow-blue-900/20 p-6 md:p-8 relative rounded-xl">
+            <button id="close-details-btn" class="absolute top-4 right-4 text-slate-400 hover:text-white z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div id="details-content"></div>
+        </div>
+    </div>
+    
+    <div id="customer-modal" class="modal fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-40 grid place-items-center p-4">
+        <div class="modal-content bg-slate-800 border border-slate-700 rounded-lg shadow-2xl shadow-black/30 w-full max-w-3xl transform transition-all max-h-[95vh] flex flex-col">
+            <div class="p-6 border-b border-slate-700">
+                <h2 id="modal-title" class="text-2xl font-bold text-slate-100">Dodaj Nową Sprawę</h2>
+            </div>
+            <form id="customer-form" class="overflow-y-auto">
+                <div class="p-6 space-y-6">
+                    <div class="p-4 border border-slate-700 rounded-lg">
+                        <h3 class="font-bold text-slate-400 mb-4">Dane Klienta</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="name" class="block text-sm font-medium text-slate-300">Imię i Nazwisko</label>
+                                <input type="text" id="name" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100" required>
+                            </div>
+                            <div>
+                                <label for="phone" class="block text-sm font-medium text-slate-300">Telefon</label>
+                                <input type="tel" id="phone" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="email" class="block text-sm font-medium text-slate-300">Email</label>
+                                <input type="email" id="email" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 border border-slate-700 rounded-lg">
+                        <h3 class="font-bold text-slate-400 mb-4">Szczegóły Sprawy</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="product" class="block text-sm font-medium text-slate-300">Produkt</label>
+                                <select id="product" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100"></select>
+                            </div>
+                            <div>
+                                <label for="status" class="block text-sm font-medium text-slate-300">Etap Procesu</label>
+                                <select id="status" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100"></select>
+                            </div>
+                            <div>
+                                <label for="caseValue" class="block text-sm font-medium text-slate-300">Wartość Sprawy (PLN)</label>
+                                <input type="number" id="caseValue" placeholder="np. 5000" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+                            </div>
+                            <div>
+    <label for="broksa" class="block text-sm font-medium text-slate-300">Broksa (%)</label>
+    <input type="number" id="broksa" placeholder="np. 10" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+</div>
+<div id="commissionRate-wrapper">
+    <label for="commissionRate" class="block text-sm font-medium text-slate-300">Prowizja (%)</label>
+    <input type="number" step="0.1" id="commissionRate" placeholder="np. 2.5" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+</div>
+<div id="commissionValue-wrapper">
+    <label for="commissionValue" class="block text-sm font-medium text-slate-300">Prowizja (PLN)</label>
+    <input type="number" id="commissionValue" placeholder="Automatycznie / Ręcznie" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+</div>
+                            <div>
+                                <label for="source" class="block text-sm font-medium text-slate-300">Źródło Kontaktu</label>
+                                <select id="source" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100"></select>
+                            </div>
+                             <div>
+                                <label for="assignedTo" class="block text-sm font-medium text-slate-300">Przypisano do</label>
+                                <select id="assignedTo" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100"></select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 border border-slate-700 rounded-lg">
+                        <h3 class="font-bold text-slate-400 mb-4">Zadanie</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="nextContactDate" class="block text-sm font-medium text-slate-300">Data Następnego Kontaktu</label>
+                                <input type="date" id="nextContactDate" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+                            </div>
+                            <div>
+                                <label for="task" class="block text-sm font-medium text-slate-300">Zadanie do Wykonania</label>
+                                <input type="text" id="task" placeholder="np. Przypomnieć o dokumentach" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 bg-slate-800 border-t border-slate-700 flex justify-end space-x-4 sticky bottom-0">
+                    <input type="hidden" id="customer-id">
+                    <button type="button" id="cancel-customer-btn" class="bg-slate-600 hover:bg-slate-500 text-slate-100 font-bold py-2 px-4 rounded-lg">Anuluj</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Zapisz</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="interaction-modal" class="modal fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 grid place-items-center p-4">
+        <div class="modal-content bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-8 w-full max-w-lg">
+            <h2 class="text-2xl font-bold mb-6 text-slate-100">Dodaj Interakcję</h2>
+            <form id="interaction-form">
+                <input type="hidden" id="interaction-customer-id">
+                <div class="space-y-4">
+                    <div>
+                        <label for="interaction-type" class="block text-sm font-medium text-slate-300">Typ Interakcji</label>
+                        <select id="interaction-type" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100">
+                            <option>Telefon wychodzący</option><option>Telefon przychodzący</option><option>Email</option><option>Spotkanie</option><option>Wysłano dokumenty</option><option>Otrzymano dokumenty</option><option>Notatka</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="interaction-notes" class="block text-sm font-medium text-slate-300">Notatki</label>
+                        <textarea id="interaction-notes" rows="4" class="mt-1 block w-full bg-slate-700 border border-slate-600 rounded-md shadow-sm py-2 px-3 text-slate-100" required></textarea>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-4">
+                    <button type="button" id="cancel-interaction-btn" class="bg-slate-600 hover:bg-slate-500 text-slate-100 font-bold py-2 px-4 rounded-lg">Anuluj</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Dodaj</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // === CONFIGURATION ===
+    const PROCESS_STAGES = { 'Kredyty': [ 'luźna gadka', 'czekamy na doksy', 'mamy dokumenty', 'Analiza', 'wnioskowanie', 'negat', 'wypłacony' ], 'SKD': [ 'luźna gadka', 'czekamy na umowy', 'czekamy na zaśw', 'propozycja do klienta', 'klient zrezygnował', 'klient wypłacony' ], 'Restru': [ 'Przekazane', 'Rezygnacja', 'Uruchomione' ], 'Hipo': ['Przekazane', 'Rezygnacja', 'Uruchomione'], 'Dotacja': ['Przekazane', 'Rezygnacja', 'Uruchomione'] };
+    const PRODUCTS = Object.keys(PROCESS_STAGES);
+    const SOURCES = ['Baza własna', 'Polecenie', 'Zakupiony lead', 'Inne'];
+    const CLOSED_STATUSES = ['wypłacony', 'klient wypłacony', 'klient podpisany', 'negat', 'klient zrezygnował', 'Rezygnacja', 'Uruchomione'];
+    const ASSIGNEES = ['Ja', 'Miłosz'];
+    const TAGS = { 'VIP': 'bg-yellow-500/20 text-yellow-300 ring-yellow-500/30', 'Z polecenia': 'bg-green-500/20 text-green-300 ring-green-500/30', 'Pilne': 'bg-red-500/20 text-red-300 ring-red-500/30', 'Trudny': 'bg-orange-500/20 text-orange-300 ring-orange-500/30', 'Wysoki potencjał': 'bg-purple-500/20 text-purple-300 ring-purple-500/30' };
+
+    // === DOM ELEMENTS ===
+    const getEl = (id) => document.getElementById(id);
+    const mainNav = getEl('main-nav');
+    const customerListView = getEl('customer-list-view');
+    const dashboardView = getEl('dashboard-view');
+    const kanbanView = getEl('kanban-view');
+    const reportsView = getEl('reports-view');
+    const searchInput = getEl('search-input');
+    const filterMenu = getEl('filter-menu');
+    const detailsContainer = getEl('customer-details-container');
+    const detailsContent = getEl('details-content');
+    const closeDetailsBtn = getEl('close-details-btn');
+    const customerModal = getEl('customer-modal');
+    const interactionModal = getEl('interaction-modal');
+    const customerForm = getEl('customer-form');
+    const interactionForm = getEl('interaction-form');
+    const addCustomerBtn = getEl('add-customer-btn');
+    const cancelCustomerBtn = getEl('cancel-customer-btn');
+    const cancelInteractionBtn = getEl('cancel-interaction-btn');
+    const productSelect = getEl('product');
+    const statusSelect = getEl('status');
+    const assignedToSelect = getEl('assignedTo');
+    
+    // === APP STATE ===
+    let customers = [];
+    let activeView = 'dashboard-view';
+    let activeFilter = { type: 'list', product: null, status: null };
+
+    // === HELPER FUNCTIONS ===
+    const saveCustomers = () => localStorage.setItem('crm_customers_financial_v4', JSON.stringify(customers));
+    const loadCustomers = () => { customers = JSON.parse(localStorage.getItem('crm_customers_financial_v4') || '[]'); };
+    const openModal = (modal) => modal.classList.remove('hidden');
+    const closeModal = (modal) => modal.classList.add('hidden');
+    
+    const getStatusColor = (status) => {
+        const baseStyle = 'ring-1 ring-inset ';
+        if (['wypłacony', 'klient wypłacony', 'Uruchomione'].includes(status)) return baseStyle + 'bg-green-500/10 text-green-300 ring-green-500/20';
+        if (['negat', 'klient zrezygnował', 'Rezygnacja'].includes(status)) return baseStyle + 'bg-red-500/10 text-red-300 ring-red-500/20';
+        if (status.startsWith('czekamy na')) return baseStyle + 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/20';
+        return baseStyle + 'bg-blue-500/10 text-blue-300 ring-blue-500/20';
+    };
+
+    const populateSelect = (selectElement, options, selectedValue) => {
+        if (!selectElement) return;
+        selectElement.innerHTML = '';
+        options.forEach(optionText => {
+            const option = new Option(optionText, optionText);
+            selectElement.add(option);
+        });
+        if (selectedValue) selectElement.value = selectedValue;
+    };
+    
+    const updateStatusOptions = () => {
+        const stages = PROCESS_STAGES[productSelect.value] || [];
+        populateSelect(statusSelect, stages);
+    };
+    
+    // ### CENTRALNA LOGIKA NAWIGACJI ###
+    const appViews = document.querySelectorAll('.app-view');
+    const showView = (viewId) => {
+        appViews.forEach(view => view.classList.add('hidden'));
+        const viewToShow = getEl(viewId);
+        if (viewToShow) viewToShow.classList.remove('hidden');
+        
+        document.querySelectorAll('#main-nav .view-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === viewId);
+        });
+        
+        activeView = viewId;
+        render();
+    };
+
+    // ### GŁÓWNA FUNKCJA RENDERUJĄCA ###
+    const render = () => {
+        saveCustomers();
+        renderFilterMenu();
+        
+        switch (activeView) {
+            case 'dashboard-view':
+                renderDashboardView();
+                break;
+            case 'customer-list-view':
+                renderCustomerListView();
+                break;
+            case 'kanban-view':
+                renderKanbanView();
+                break;
+            case 'reports-view':
+                renderReportsView();
+                break;
+        }
+    };
+    
+    // ### POSZCZEGÓLNE FUNKCJE RENDERUJĄCE WIDOKI ###
+    const renderDashboardView = () => {
+    // --- 1. Przygotowanie danych ---
+    const openDeals = customers.filter(c => !CLOSED_STATUSES.includes(c.status));
+    const totalOpenValue = openDeals.reduce((sum, c) => sum + (c.caseValue || 0), 0);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Ustawiamy godzinę na początek dnia dla precyzyjnych porównań
+
+    const allTasks = openDeals
+        .filter(c => c.task && c.nextContactDate) // Bierzemy tylko sprawy z zadaniem i datą
+        .map(c => {
+            const contactDate = new Date(c.nextContactDate + 'T00:00:00');
+            let type = 'future';
+            if (contactDate < today) type = 'overdue';
+            if (contactDate.getTime() === today.getTime()) type = 'today';
+            
+            return {
+                customerId: c.id,
+                customerName: c.name,
+                task: c.task,
+                date: contactDate,
+                type: type
+            };
+        })
+        .filter(t => t.type === 'overdue' || t.type === 'today') // Interesują nas tylko zaległe i na dziś
+        .sort((a, b) => a.date - b.date); // Sortujemy od najstarszych
+
+    // --- 2. Generowanie HTML ---
+    const tasksHTML = allTasks.length > 0 
+        ? allTasks.map(task => `
+            <li class="task-item ${task.type}">
+                <div>
+                    <p class="font-semibold text-slate-100">${task.task}</p>
+                    <a class="task-customer-link text-sm" data-id="${task.customerId}">${task.customerName}</a>
+                </div>
+                <span class="text-xs font-medium ${task.type === 'overdue' ? 'text-red-400' : 'text-yellow-400'}">
+                    ${task.date.toLocaleDateString('pl-PL')}
+                </span>
+            </li>
+        `).join('')
+        : '<p class="text-sm text-slate-400">Brak zadań na dziś. Dobra robota!</p>';
+
+    dashboardView.innerHTML = `
+        <div class="dashboard-grid">
+            <div class="widget col-span-2">
+                <h3 class="widget-title">Zadania do wykonania</h3>
+                <ul class="task-list">
+                    ${tasksHTML}
+                </ul>
+            </div>
+
+            <div class="widget">
+                <h3 class="widget-title">Statystyki</h3>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-slate-400">Otwarte sprawy</p>
+                        <p class="text-2xl font-bold text-slate-100">${openDeals.length}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-400">Wartość spraw w toku</p>
+                        <p class="text-2xl font-bold text-blue-400">${totalOpenValue.toLocaleString('pl-PL')} PLN</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+    const renderCustomerListView = () => {
+        const filterText = (searchInput.value || '').toLowerCase();
+        customerListView.innerHTML = '';
+
+        const filteredCustomers = customers.filter(c => {
+            const matchesText = !filterText || (c.name || '').toLowerCase().includes(filterText);
+            const matchesProduct = !activeFilter.product || c.product === activeFilter.product;
+            const matchesStatus = !activeFilter.status || c.status === activeFilter.status;
+            return matchesText && matchesProduct && matchesStatus;
+        });
+
+        if (filteredCustomers.length === 0) {
+            customerListView.innerHTML = `<p class="text-center text-slate-500 p-4 col-span-full">Brak pasujących wyników.</p>`;
+            return;
+        }
+
+        filteredCustomers.sort((a, b) => a.name.localeCompare(b.name));
+        
+        filteredCustomers.forEach(customer => {
+            const card = document.createElement('div');
+            card.className = `customer-card bg-slate-800 p-4 rounded-lg shadow-md shadow-black/20 border border-slate-700 cursor-pointer hover:border-blue-500 hover:scale-[1.02] hover:shadow-lg hover:shadow-blue-600/20 transition-all duration-200`;
+            card.dataset.id = customer.id;
+
+            const tagsHTML = (customer.tags || []).map(tag => `<span class="tag ${TAGS[tag] || ''}">${tag}</span>`).join('');
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <h3 class="font-bold text-slate-100 truncate pr-2">${customer.name}</h3>
+                    <span class="text-xs text-slate-400">${customer.assignedTo || ''}</span>
+                </div>
+                <div class="flex flex-wrap gap-1 my-2">${tagsHTML}</div>
+                <p class="text-xs text-slate-400 font-medium">${customer.product || ''}</p>
+                ${customer.caseValue > 0 ? `<p class="font-semibold text-blue-400 text-sm mt-1">${customer.caseValue.toLocaleString('pl-PL')} PLN</p>` : ''}
+                <div class="mt-3">
+                    <span class="text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(customer.status)}">${customer.status}</span>
+                </div>
+            `;
+            customerListView.appendChild(card);
+        });
+    };
+    
+    const renderKanbanView = () => {
+    // Na razie skupimy się na jednym procesie, np. dla produktu "Kredyty".
+    // W przyszłości można dodać przełącznik do wyświetlania różnych lejków.
+    const kanbanStages = PROCESS_STAGES['Kredyty'];
+
+    kanbanView.innerHTML = ''; // Wyczyść widok przed renderowaniem
+
+    const board = document.createElement('div');
+    board.className = 'kanban-board';
+
+    // Utwórz kolumnę dla każdego etapu
+    kanbanStages.forEach(stage => {
+        const column = document.createElement('div');
+        column.className = 'kanban-column';
+        column.dataset.stage = stage; // Przydatne w przyszłości dla drag-and-drop
+
+        // Przefiltruj klientów, którzy pasują do danego etapu i produktu
+        const dealsInStage = customers.filter(c => c.status === stage && c.product === 'Kredyty');
+
+        // Stwórz nagłówek kolumny
+        const header = document.createElement('div');
+        header.className = 'kanban-column-header';
+        header.innerHTML = `
+            <span>${stage}</span>
+            <span class="deal-count">${dealsInStage.length}</span>
+        `;
+        
+        const cardsContainer = document.createElement('div');
+        cardsContainer.className = 'kanban-cards';
+
+        // Utwórz karty dla każdej sprawy w tej kolumnie
+        dealsInStage.forEach(deal => {
+            const card = document.createElement('div');
+            card.className = 'kanban-card';
+            card.dataset.id = deal.id; // ID klienta, kluczowe dla dalszych akcji
+            card.draggable = true;
+            
+            card.innerHTML = `
+    <p class="font-bold text-slate-100">${deal.name}</p>
+    <p class="text-sm text-blue-400 mt-1">Wartość: ${(deal.caseValue || 0).toLocaleString('pl-PL')} PLN</p>
+    
+    <p class="text-sm text-green-400 font-semibold">Prowizja: ${(deal.commissionValue || 0).toLocaleString('pl-PL')} PLN</p>
+    
+    <div class="text-xs text-slate-400 mt-2">${deal.assignedTo || ''}</div>
+`;
+            cardsContainer.appendChild(card);
+        });
+
+        column.appendChild(header);
+        column.appendChild(cardsContainer);
+        board.appendChild(column);
+    });
+
+    kanbanView.appendChild(board);
+};
+    
+    const renderReportsView = () => {
+        reportsView.innerHTML = `
+            <h2 class="text-2xl font-bold text-slate-100">Raporty i Analityka</h2>
+            <p class="mt-2 text-slate-400">Tutaj znajdziesz zaawansowane analizy swojej pracy. W przygotowaniu!</p>
+        `;
+    };
+    
+    const renderFilterMenu = () => {
+        // ... (logika menu bocznego - bez zmian)
+    };
+
+    const showDetails = (customerId) => {
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) return;
+        
+        const tagsHTML = Object.keys(TAGS).map(tag => 
+            `<span class="tag ${TAGS[tag]} ${(customer.tags || []).includes(tag) ? 'selected' : ''}" data-tag="${tag}">${tag}</span>`
+        ).join('');
+
+        detailsContent.innerHTML = `
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-100">${customer.name}</h2>
+                    <p class="text-lg text-slate-300">${customer.product || ''}</p>
+                    <div class="mt-2"><span class="text-sm font-semibold px-3 py-1 rounded-full ${getStatusColor(customer.status)}">${customer.status}</span></div>
+                </div>
+                <div class="flex space-x-2">
+                    <button data-action="edit" data-id="${customer.id}" class="bg-slate-600 p-2 rounded-full">Edytuj</button>
+                    <button data-action="delete" data-id="${customer.id}" class="bg-red-900/50 p-2 rounded-full">Usuń</button>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-6" id="details-tags">${tagsHTML}</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-700 pt-6">
+                <div><h4 class="font-semibold text-slate-400">Wartość Sprawy</h4><p>${customer.caseValue ? customer.caseValue.toLocaleString('pl-PL') + ' PLN' : 'Brak'}</p></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-700 pt-6">
+    
+    <div>
+        <h4 class="font-semibold text-slate-400">Wartość Sprawy</h4>
+        <p class="font-bold text-blue-400">${customer.caseValue ? customer.caseValue.toLocaleString('pl-PL') + ' PLN' : 'Brak'}</p>
+    </div>
+
+    <div>
+        <h4 class="font-semibold text-slate-400">Przewidywana prowizja</h4>
+        <p class="font-bold text-green-400">${customer.commissionValue ? customer.commissionValue.toLocaleString('pl-PL') + ' PLN' : 'Brak'} (${customer.commissionRate || 0}%)</p>
+    </div>
+
+    <div><h4 class="font-semibold text-slate-400">Telefon</h4><p>${customer.phone || 'Brak'}</p></div>
+    <div><h4 class="font-semibold text-slate-400">Email</h4><p>${customer.email || 'Brak'}</div>
+    <div><h4 class="font-semibold text-slate-400">Źródło</h4><p>${customer.source || 'Brak'}</div>
+
+    </div>
+                <div><h4 class="font-semibold text-slate-400">Telefon</h4><p>${customer.phone || 'Brak'}</div>
+                <div><h4 class="font-semibold text-slate-400">Email</h4><p>${customer.email || 'Brak'}</div>
+                <div><h4 class="font-semibold text-slate-400">Źródło</h4><p>${customer.source || 'Brak'}</div>
+                ${customer.task ? `
+                    <div class="md:col-span-2 border-t border-slate-700 pt-4 mt-4">
+                         <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-semibold text-slate-400">Następne zadanie</h4>
+                                <p class="font-bold text-yellow-400">${customer.task}</p>
+                                <p class="text-sm text-slate-400">Termin: ${new Date(customer.nextContactDate + 'T00:00:00').toLocaleDateString('pl-PL')}</p>
+                            </div>
+                            <button data-action="complete-task" data-id="${customer.id}" class="bg-green-600/80 text-white text-sm font-bold py-2 px-3 rounded-lg">Wykonane</button>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="border-t border-slate-700 pt-4 mt-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold">Historia Interakcji</h3>
+                    <button id="add-interaction-btn" data-id="${customer.id}" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Dodaj Interakcję</button>
+                </div>
+                <div id="interaction-list" class="space-y-4"></div>
+            </div>
+        `;
+        
+        const interactionList = detailsContent.querySelector('#interaction-list');
+        (customer.interactions || []).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(interaction => {
+            const item = document.createElement('div');
+            item.className = 'border-l-4 border-blue-500 p-4 rounded-r-lg bg-slate-800';
+            item.innerHTML = `<div class="flex justify-between items-center"><p class="font-bold">${interaction.type}</p><p class="text-sm text-slate-400">${new Date(interaction.date).toLocaleString('pl-PL')}</p></div><p class="mt-2">${interaction.notes}</p>`;
+            interactionList.appendChild(item);
+        });
+
+        openModal(detailsContainer);
+    };
+
+    // ### EVENT HANDLERS ###
+  const setupKanbanListeners = () => {
+    let draggedCardId = null;
+
+    // Zdarzenie, gdy zaczynasz przeciągać kartę
+    kanbanView.addEventListener('dragstart', (e) => {
+        if (e.target.classList.contains('kanban-card')) {
+            draggedCardId = e.target.dataset.id;
+            // Dodajemy lekką przezroczystość przeciąganemu elementowi
+            setTimeout(() => {
+                e.target.style.opacity = '0.5';
+            }, 0);
+        }
+    });
+    // Interaktywne obliczanie prowizji w formularzu
+customerModal.addEventListener('input', (e) => {
+    if (['caseValue', 'commissionRate'].includes(e.target.id)) {
+        const caseValue = parseFloat(getEl('caseValue').value) || 0;
+        const commissionRate = parseFloat(getEl('commissionRate').value) || 0;
+
+        if (caseValue > 0 && commissionRate > 0) {
+            const calculatedCommission = (caseValue * commissionRate) / 100;
+            getEl('commissionValue').value = calculatedCommission.toFixed(2);
+        }
+    }
+});
+
+    // Zdarzenie, gdy przeciągany element opuszcza obszar
+    kanbanView.addEventListener('dragend', (e) => {
+        if (e.target.classList.contains('kanban-card')) {
+            // Przywracamy pełną widoczność
+            e.target.style.opacity = '1';
+            draggedCardId = null;
+        }
+    });
+
+    // Zdarzenie, gdy karta jest przeciągana NAD kolumną
+    kanbanView.addEventListener('dragover', (e) => {
+        // Musimy wywołać preventDefault(), aby pozwolić na upuszczenie elementu
+        e.preventDefault();
+    });
+
+    // Zdarzenie, gdy upuszczasz kartę na nowej kolumnie
+    kanbanView.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const targetColumn = e.target.closest('.kanban-column');
+        
+        if (targetColumn && draggedCardId) {
+            const newStatus = targetColumn.dataset.stage;
+            const customer = customers.find(c => c.id === draggedCardId);
+
+            if (customer && customer.status !== newStatus) {
+                // 1. Zaktualizuj status klienta w danych
+                customer.status = newStatus;
+                
+                // 2. Zapisz zmiany i przerenderuj całą tablicę
+                saveCustomers();
+                renderKanbanView();
+            }
+        }
+    });
+};
+    mainNav.addEventListener('click', (e) => {
+        const viewBtn = e.target.closest('.view-btn');
+        if (viewBtn && viewBtn.dataset.view) {
+            showView(viewBtn.dataset.view);
+        }
+    });
+
+    customerListView.addEventListener('click', (e) => {
+        const card = e.target.closest('.customer-card');
+        if (card && card.dataset.id) {
+            showDetails(card.dataset.id);
+        }
+    });
+  dashboardView.addEventListener('click', (e) => {
+    const customerLink = e.target.closest('.task-customer-link');
+    if (customerLink && customerLink.dataset.id) {
+        showDetails(customerLink.dataset.id);
+    }
+});
+    
+    detailsContainer.addEventListener('click', (e) => {
+    // Logika dla tagów (pozostaje bez zmian)
+    const tagEl = e.target.closest('.tag');
+    if (tagEl) {
+        const customerId = detailsContent.querySelector('button[data-action="edit"]').dataset.id;
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) return;
+        if (!customer.tags) customer.tags = [];
+        const tagName = tagEl.dataset.tag;
+        if (customer.tags.includes(tagName)) {
+            customer.tags = customer.tags.filter(t => t !== tagName);
+        } else {
+            customer.tags.push(tagName);
+        }
+        showDetails(customerId);
+        render();
+        return;
+    }
+
+    // Logika dla przycisków
+    const button = e.target.closest('button');
+    if (!button) return; // Uproszczony warunek
+
+    // Obsługa przycisku "Dodaj interakcję"
+    if (button.id === 'add-interaction-btn') {
+        interactionForm.reset();
+        getEl('interaction-customer-id').value = button.dataset.id;
+        openModal(interactionModal);
+        return;
+    }
+
+    // Sprawdzenie, czy przycisk ma akcję (data-action)
+    if (!button.dataset.action) return;
+
+    const { action, id } = button.dataset;
+    const customer = customers.find(c => c.id === id);
+    if (!customer) return;
+
+    if (action === 'edit') {
+        // UZUPEŁNIONA LOGIKA EDYCJI
+        getEl('modal-title').textContent = 'Edytuj Sprawę';
+        getEl('customer-id').value = customer.id;
+        getEl('name').value = customer.name;
+        getEl('phone').value = customer.phone || '';
+        getEl('email').value = customer.email || '';
+        productSelect.value = customer.product;
+        updateStatusOptions();
+        statusSelect.value = customer.status;
+        getEl('caseValue').value = customer.caseValue || '';
+        getEl('broksa').value = customer.broksa || '';
+        getEl('source').value = customer.source;
+        getEl('assignedTo').value = customer.assignedTo;
+        getEl('task').value = customer.task || '';
+        getEl('nextContactDate').value = customer.nextContactDate || '';
+        openModal(customerModal);
+    } 
+    else if (action === 'delete') {
+        // UZUPEŁNIONA LOGIKA USUWANIA
+        if (confirm(`Czy na pewno chcesz usunąć sprawę klienta ${customer.name}?`)) {
+            customers = customers.filter(c => c.id !== id);
+            closeModal(detailsContainer);
+            render();
+        }
+    } 
+    else if (action === 'complete-task') {
+        customer.task = '';
+        customer.nextContactDate = '';
+        showDetails(id);
+        render();
+    }
+});
+    
+    customerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = getEl('customer-id').value;
+    
+    // To jest brakująca logika, która tworzy obiekt customerData
+    const customerData = { 
+        name: getEl('name').value, 
+        phone: getEl('phone').value, 
+        email: getEl('email').value, 
+        product: getEl('product').value, 
+        status: getEl('status').value, 
+        caseValue: parseFloat(getEl('caseValue').value) || 0,
+        broksa: parseFloat(getEl('broksa').value) || 0,
+        source: getEl('source').value,
+        assignedTo: getEl('assignedTo').value,
+        task: getEl('task').value,
+        nextContactDate: getEl('nextContactDate').value,
+        commissionRate: parseFloat(getEl('commissionRate').value) || 0,
+        commissionValue: parseFloat(getEl('commissionValue').value) || 0
+    };
+
+    if (id) {
+        // Edycja istniejącego klienta
+        const index = customers.findIndex(c => c.id === id);
+        if (index > -1) {
+            const existingCustomer = customers[index];
+            customers[index] = { ...existingCustomer, ...customerData };
+        }
+    } else {
+        // Dodawanie nowego klienta
+        const newCustomer = { 
+            ...customerData, 
+            id: `cust_${Date.now()}`, 
+            addedDate: new Date().toISOString(), 
+            interactions: [], 
+            tags: [] 
+        };
+        customers.push(newCustomer);
+    }
+    
+    closeModal(customerModal);
+    render(); // Wywołujemy render() po zamknięciu modala, aby odświeżyć widok
+});
+    interactionForm.addEventListener('submit', (e) => { e.preventDefault(); /* ... logika zapisu interakcji ... */ });
+    addCustomerBtn.addEventListener('click', () => { openModal(customerModal); });
+    closeDetailsBtn.addEventListener('click', () => closeModal(detailsContainer));
+    cancelCustomerBtn.addEventListener('click', () => closeModal(customerModal));
+    cancelInteractionBtn.addEventListener('click', () => closeModal(interactionModal));
+    productSelect.addEventListener('change', updateStatusOptions);
+
+    // ### INICJALIZACJA ###
+    const init = () => {
+        loadCustomers();
+        populateSelect(productSelect, PRODUCTS);
+        populateSelect(getEl('source'), SOURCES);
+        populateSelect(assignedToSelect, ASSIGNEES);
+        updateStatusOptions();
+        setupKanbanListeners();
+        showView(activeView); 
+    };
+
+    init();
+});
+</script>
+
+</body>
+</html>
