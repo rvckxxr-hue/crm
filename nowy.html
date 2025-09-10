@@ -10,7 +10,34 @@
         body { font-family: 'Inter', sans-serif; }
         .modal { transition: opacity 0.25s ease; }
         .modal-content { transition: transform 0.25s ease; }
-        
+
+        /* Style dla Tabeli Raportów */
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+}
+
+.report-table th, .report-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #334155; /* slate-700 */
+}
+
+.report-table th {
+    background-color: #1e293b; /* slate-800 */
+    font-weight: 600;
+    color: #cbd5e1; /* slate-300 */
+}
+
+.report-table td {
+    color: #94a3b8; /* slate-400 */
+}
+
+.report-table .conversion-rate {
+    font-weight: bold;
+    color: #4ade80; /* green-400 */
+}
         /* Paski przewijania */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
@@ -70,6 +97,8 @@
                     <button data-view="kanban-view" class="view-btn px-4 py-2 rounded-md text-sm font-medium">Kanban</button>
                     <button data-view="reports-view" class="view-btn px-4 py-2 rounded-md text-sm font-medium">Raporty</button>
                 </div>
+
+                <div id="customer-list-controls" class="app-view hidden p-4 border-b border-slate-700"></div>
 
                 <div id="dashboard-view" class="app-view hidden flex-grow overflow-y-auto p-4 md:p-6"></div>
                 <div id="customer-list-view" class="app-view hidden flex-grow overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start"></div>
@@ -150,18 +179,26 @@
                         </div>
                     </div>
                     <div class="p-4 border border-slate-700 rounded-lg">
-                        <h3 class="font-bold text-slate-400 mb-4">Zadanie</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="nextContactDate" class="block text-sm font-medium">Data Następnego Kontaktu</label>
-                                <input type="date" id="nextContactDate" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-md py-2 px-3">
-                            </div>
-                            <div>
-                                <label for="task" class="block text-sm font-medium">Zadanie do Wykonania</label>
-                                <input type="text" id="task" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-md py-2 px-3">
-                            </div>
-                        </div>
-                    </div>
+    <h3 class="font-bold text-slate-400 mb-4">Zadanie</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label for="taskDescription" class="block text-sm font-medium">Opis zadania</label>
+            <input type="text" id="taskDescription" placeholder="np. Przypomnieć o dokumentach" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-md py-2 px-3">
+        </div>
+        <div>
+            <label for="nextContactDate" class="block text-sm font-medium">Termin wykonania</label>
+            <input type="date" id="nextContactDate" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-md py-2 px-3">
+        </div>
+        <div>
+            <label for="taskType" class="block text-sm font-medium">Typ zadania</label>
+            <select id="taskType" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-md py-2 px-3"></select>
+        </div>
+        <div>
+            <label for="taskPriority" class="block text-sm font-medium">Priorytet</label>
+            <select id="taskPriority" class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-md py-2 px-3"></select>
+        </div>
+    </div>
+</div>
                 </div>
                 <div class="p-6 bg-slate-800 border-t border-slate-700 flex justify-end space-x-4 sticky bottom-0">
                     <input type="hidden" id="customer-id">
@@ -200,6 +237,20 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // === KONFIGURACJA ===
+const TASK_TYPES = {
+    'Telefon': '📞',
+    'Email': '✉️',
+    'Spotkanie': '👥',
+    'Dokumenty': '📄',
+    'Inne': '📌'
+};
+
+const TASK_PRIORITIES = {
+    'Wysoki': 'text-red-400',
+    'Normalny': 'text-yellow-400',
+    'Niski': 'text-sky-400'
+};
+// ... reszta Twojej konfiguracji (PROCESS_STAGES, etc.)
     const PROCESS_STAGES = { 'Kredyty': [ 'luźna gadka', 'czekamy na doksy', 'mamy dokumenty', 'Analiza', 'wnioskowanie', 'negat', 'wypłacony' ], 'SKD': [ 'luźna gadka', 'czekamy na umowy', 'czekamy na zaśw', 'propozycja do klienta', 'klient zrezygnował', 'klient wypłacony' ], 'Restru': [ 'Przekazane', 'Rezygnacja', 'Uruchomione' ], 'Hipo': ['Przekazane', 'Rezygnacja', 'Uruchomione'], 'Dotacja': ['Przekazane', 'Rezygnacja', 'Uruchomione'] };
     const PRODUCTS = Object.keys(PROCESS_STAGES);
     const SOURCES = ['Baza własna', 'Polecenie', 'Zakupiony lead', 'Inne'];
@@ -211,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const getEl = (id) => document.getElementById(id);
     const mainNav = getEl('main-nav');
     const customerListView = getEl('customer-list-view');
+    const customerListControls = getEl('customer-list-controls'); // Nowy element
     const dashboardView = getEl('dashboard-view');
     const kanbanView = getEl('kanban-view');
     const reportsView = getEl('reports-view');
@@ -233,14 +285,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // === STAN APLIKACJI ===
     let customers = [];
     let activeView = 'dashboard-view';
-    let activeFilter = { type: 'list', product: null, status: null };
-
+    
     // === FUNKCJE POMOCNICZE ===
     const saveCustomers = () => localStorage.setItem('crm_customers_financial_v5', JSON.stringify(customers));
     const loadCustomers = () => { customers = JSON.parse(localStorage.getItem('crm_customers_financial_v5') || '[]'); };
     const openModal = (modal) => modal.classList.remove('hidden');
     const closeModal = (modal) => modal.classList.add('hidden');
-    
     const getStatusColor = (status) => {
         const baseStyle = 'ring-1 ring-inset ';
         if (['wypłacony', 'klient wypłacony', 'Uruchomione'].includes(status)) return baseStyle + 'bg-green-500/10 text-green-300 ring-green-500/20';
@@ -248,27 +298,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (status && status.startsWith('czekamy na')) return baseStyle + 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/20';
         return baseStyle + 'bg-blue-500/10 text-blue-300 ring-blue-500/20';
     };
-
     const populateSelect = (select, options, selected) => {
         if (!select) return;
         select.innerHTML = '';
-        options.forEach(opt => {
-            const option = new Option(opt, opt);
-            select.add(option);
-        });
+        options.forEach(opt => select.add(new Option(opt, opt)));
         if (selected) select.value = selected;
     };
-    
-    const updateStatusOptions = () => {
-        const stages = PROCESS_STAGES[productSelect.value] || [];
-        populateSelect(statusSelect, stages);
-    };
+    const updateStatusOptions = () => populateSelect(statusSelect, PROCESS_STAGES[productSelect.value] || []);
     
     // === NAWIGACJA ===
     const appViews = document.querySelectorAll('.app-view');
     const showView = (viewId) => {
         appViews.forEach(view => view.classList.add('hidden'));
-        getEl(viewId)?.classList.remove('hidden');
+        
+        // Specjalna logika dla widoku listy i jej kontrolek
+        if (viewId === 'customer-list-view') {
+            getEl('customer-list-controls')?.classList.remove('hidden');
+            getEl('customer-list-view')?.classList.remove('hidden');
+        } else {
+            getEl(viewId)?.classList.remove('hidden');
+        }
+        
         document.querySelectorAll('#main-nav .view-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.view === viewId);
         });
@@ -283,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const renderMap = {
             'dashboard-view': renderDashboardView,
-            'customer-list-view': renderCustomerListView,
+            'customer-list-view': () => { renderListControls(); renderCustomerListView(); },
             'kanban-view': renderKanbanView,
             'reports-view': renderReportsView
         };
@@ -296,140 +346,65 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalOpenValue = openDeals.reduce((sum, c) => sum + (c.caseValue || 0), 0);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
-        const allTasks = openDeals
-            .filter(c => c.task && c.nextContactDate)
-            .map(c => {
-                const contactDate = new Date(c.nextContactDate + 'T00:00:00');
-                let type = 'future';
-                if (contactDate < today) type = 'overdue';
-                if (contactDate.getTime() === today.getTime()) type = 'today';
-                return { customerId: c.id, customerName: c.name, task: c.task, date: contactDate, type: type };
-            })
-            .filter(t => t.type === 'overdue' || t.type === 'today')
-            .sort((a, b) => a.date - b.date);
-
-        const tasksHTML = allTasks.length > 0 
-            ? allTasks.map(task => `
-                <li class="task-item ${task.type}">
-                    <div>
-                        <p class="font-semibold">${task.task}</p>
-                        <a class="task-customer-link text-sm" data-id="${task.customerId}">${task.customerName}</a>
+        const allTasks = openDeals.filter(c => c.task && c.nextContactDate).map(c => ({...c, contactDate: new Date(c.nextContactDate + 'T00:00:00')})).filter(c => c.contactDate <= today).sort((a,b) => a.contactDate - b.contactDate);
+        const tasksHTML = allTasks.length > 0 ? allTasks.map(task => `<li class="task-item ${task.contactDate < today ? 'overdue' : 'today'}"><div><p class="font-semibold">${task.task}</p><a class="task-customer-link text-sm" data-id="${task.id}">${task.name}</a></div><span class="text-xs font-medium">${task.contactDate.toLocaleDateString('pl-PL')}</span></li>`).join('') : '<p class="text-sm text-slate-400">Brak zadań na dziś.</p>';
+        dashboardView.innerHTML = `<div class="dashboard-grid"><div class="widget col-span-2"><h3 class="widget-title">Zadania do wykonania</h3><ul class="task-list">${tasksHTML}</ul></div><div class="widget"><h3 class="widget-title">Statystyki</h3><div class="space-y-4"><div><p class="text-sm text-slate-400">Otwarte sprawy</p><p class="text-2xl font-bold">${openDeals.length}</p></div><div><p class="text-sm text-slate-400">Wartość w toku</p><p class="text-2xl font-bold text-blue-400">${totalOpenValue.toLocaleString('pl-PL')} PLN</p></div></div></div></div>`;
+    };
+    
+    const renderListControls = () => {
+        if (customerListControls.innerHTML === '') { // Renderuj kontrolki tylko raz, aby zachować stan
+            customerListControls.innerHTML = `
+                <div class="flex justify-end items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <label for="filterProduct" class="text-sm font-medium text-slate-400">Produkt:</label>
+                        <select id="filterProduct" class="bg-slate-700 border-slate-600 rounded-md py-1 px-2 text-sm">
+                            <option value="all">Wszystkie</option>
+                            ${PRODUCTS.map(p => `<option value="${p}">${p}</option>`).join('')}
+                        </select>
                     </div>
-                    <span class="text-xs font-medium ${task.type === 'overdue' ? 'text-red-400' : 'text-yellow-400'}">
-                        ${task.date.toLocaleDateString('pl-PL')}
-                    </span>
-                </li>`).join('')
-            : '<p class="text-sm text-slate-400">Brak zadań na dziś. Dobra robota!</p>';
-
-        dashboardView.innerHTML = `
-            <div class="dashboard-grid">
-                <div class="widget col-span-2">
-                    <h3 class="widget-title">Zadania do wykonania</h3>
-                    <ul class="task-list">${tasksHTML}</ul>
-                </div>
-                <div class="widget">
-                    <h3 class="widget-title">Statystyki</h3>
-                    <div class="space-y-4">
-                        <div><p class="text-sm text-slate-400">Otwarte sprawy</p><p class="text-2xl font-bold">${openDeals.length}</p></div>
-                        <div><p class="text-sm text-slate-400">Wartość spraw w toku</p><p class="text-2xl font-bold text-blue-400">${totalOpenValue.toLocaleString('pl-PL')} PLN</p></div>
+                    <div class="flex items-center gap-2">
+                        <label for="sortBy" class="text-sm font-medium text-slate-400">Sortuj wg:</label>
+                        <select id="sortBy" class="bg-slate-700 border-slate-600 rounded-md py-1 px-2 text-sm">
+                            <option value="name-asc">Nazwa (A-Z)</option><option value="name-desc">Nazwa (Z-A)</option>
+                            <option value="value-desc">Wartość (najwyższa)</option><option value="value-asc">Wartość (najniższa)</option>
+                            <option value="date-desc">Data dodania (najnowsze)</option>
+                        </select>
                     </div>
-                </div>
-            </div>`;
+                </div>`;
+        }
     };
 
     const renderCustomerListView = () => {
-    // --- 1. Dodanie kontrolek do sortowania i filtrowania ---
-    const controlsHTML = `
-        <div class="col-span-full flex justify-end items-center gap-4 mb-4 px-2">
-            <div class="flex items-center gap-2">
-                <label for="filterProduct" class="text-sm font-medium text-slate-400">Produkt:</label>
-                <select id="filterProduct" class="bg-slate-700 border-slate-600 rounded-md py-1 px-2 text-sm">
-                    <option value="all">Wszystkie</option>
-                    ${PRODUCTS.map(p => `<option value="${p}">${p}</option>`).join('')}
-                </select>
-            </div>
-            <div class="flex items-center gap-2">
-                <label for="sortBy" class="text-sm font-medium text-slate-400">Sortuj wg:</label>
-                <select id="sortBy" class="bg-slate-700 border-slate-600 rounded-md py-1 px-2 text-sm">
-                    <option value="name-asc">Nazwa (A-Z)</option>
-                    <option value="name-desc">Nazwa (Z-A)</option>
-                    <option value="value-desc">Wartość (najwyższa)</option>
-                    <option value="value-asc">Wartość (najniższa)</option>
-                    <option value="date-desc">Data dodania (najnowsze)</option>
-                </select>
-            </div>
-        </div>
-    `;
-
-    customerListView.innerHTML = controlsHTML; // Najpierw wstawiamy kontrolki
-
-    // --- 2. Pobranie aktualnych wartości filtrów ---
-    const filterProduct = getEl('filterProduct')?.value || 'all';
-    const sortBy = getEl('sortBy')?.value || 'name-asc';
-    const filterText = (searchInput.value || '').toLowerCase();
-    
-    // --- 3. Filtrowanie i sortowanie danych ---
-    let filteredCustomers = customers
-        .filter(c => {
-            const matchesText = !filterText || (c.name || '').toLowerCase().includes(filterText);
-            const matchesProduct = filterProduct === 'all' || c.product === filterProduct;
-            return matchesText && matchesProduct;
+        const filterProduct = getEl('filterProduct')?.value || 'all';
+        const sortBy = getEl('sortBy')?.value || 'name-asc';
+        const filterText = (searchInput.value || '').toLowerCase();
+        
+        let filteredCustomers = customers.filter(c => (filterText === '' || c.name.toLowerCase().includes(filterText)) && (filterProduct === 'all' || c.product === filterProduct));
+        
+        filteredCustomers.sort((a, b) => {
+            switch (sortBy) {
+                case 'name-desc': return b.name.localeCompare(a.name);
+                case 'value-desc': return (b.caseValue || 0) - (a.caseValue || 0);
+                case 'value-asc': return (a.caseValue || 0) - (b.caseValue || 0);
+                case 'date-desc': return new Date(b.addedDate) - new Date(a.addedDate);
+                default: return a.name.localeCompare(a.name);
+            }
         });
-
-    filteredCustomers.sort((a, b) => {
-        switch (sortBy) {
-            case 'name-desc': return b.name.localeCompare(a.name);
-            case 'value-desc': return (b.caseValue || 0) - (a.caseValue || 0);
-            case 'value-asc': return (a.caseValue || 0) - (b.caseValue || 0);
-            case 'date-desc': return new Date(b.addedDate) - new Date(a.addedDate);
-            default: return a.name.localeCompare(b.name); // name-asc
+        
+        const listContainer = getEl('customer-list-view');
+        listContainer.innerHTML = ''; // Czyść tylko listę, nie kontrolki
+        if (filteredCustomers.length === 0) {
+            listContainer.innerHTML = `<p class="text-center text-slate-500 p-4 col-span-full">Brak wyników.</p>`;
+            return;
         }
-    });
 
-    // --- 4. Renderowanie kafelków (tak jak wcześniej) ---
-    if (filteredCustomers.length === 0) {
-        customerListView.innerHTML += `<p class="text-center text-slate-500 p-4 col-span-full">Brak pasujących wyników.</p>`;
-        return;
-    }
-
-    filteredCustomers.forEach(customer => {
-        const card = document.createElement('div');
-        card.className = `customer-card bg-slate-800 p-4 rounded-lg shadow-md border border-slate-700 cursor-pointer`;
-        card.dataset.id = customer.id;
-        const tagsHTML = (customer.tags || []).map(tag => `<span class="tag ${TAGS[tag] || ''}">${tag}</span>`).join('');
-        card.innerHTML = `
-            <div class="flex justify-between items-start">
-                <h3 class="font-bold truncate pr-2">${customer.name}</h3>
-                <span class="text-xs text-slate-400">${customer.assignedTo || ''}</span>
-            </div>
-            <div class="flex flex-wrap gap-1 my-2">${tagsHTML}</div>
-            <p class="text-xs font-medium">${customer.product || ''}</p>
-            ${customer.caseValue > 0 ? `<p class="font-semibold text-blue-400 text-sm mt-1">${customer.caseValue.toLocaleString('pl-PL')} PLN</p>` : ''}
-            <div class="mt-3">
-                <span class="text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(customer.status)}">${customer.status}</span>
-            </div>`;
-        customerListView.appendChild(card);
-    });
-};
-
-        filtered.sort((a, b) => a.name.localeCompare(b.name)).forEach(customer => {
+        filteredCustomers.forEach(customer => {
             const card = document.createElement('div');
-            card.className = `customer-card bg-slate-800 p-4 rounded-lg shadow-md border border-slate-700 cursor-pointer transition-all duration-200`;
+            card.className = `customer-card bg-slate-800 p-4 rounded-lg shadow-md border border-slate-700 cursor-pointer`;
             card.dataset.id = customer.id;
             const tagsHTML = (customer.tags || []).map(tag => `<span class="tag ${TAGS[tag] || ''}">${tag}</span>`).join('');
-            card.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <h3 class="font-bold truncate pr-2">${customer.name}</h3>
-                    <span class="text-xs text-slate-400">${customer.assignedTo || ''}</span>
-                </div>
-                <div class="flex flex-wrap gap-1 my-2">${tagsHTML}</div>
-                <p class="text-xs font-medium">${customer.product || ''}</p>
-                ${customer.caseValue > 0 ? `<p class="font-semibold text-blue-400 text-sm mt-1">${customer.caseValue.toLocaleString('pl-PL')} PLN</p>` : ''}
-                <div class="mt-3">
-                    <span class="text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(customer.status)}">${customer.status}</span>
-                </div>`;
-            customerListView.appendChild(card);
+            card.innerHTML = `<div class="flex justify-between items-start"><h3 class="font-bold truncate pr-2">${customer.name}</h3><span class="text-xs text-slate-400">${customer.assignedTo||''}</span></div><div class="flex flex-wrap gap-1 my-2">${tagsHTML}</div><p class="text-xs font-medium">${customer.product||''}</p>${customer.caseValue>0?`<p class="font-semibold text-blue-400 text-sm mt-1">${customer.caseValue.toLocaleString('pl-PL')} PLN</p>`:''}<div class="mt-3"><span class="text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(customer.status)}">${customer.status}</span></div>`;
+            listContainer.appendChild(card);
         });
     };
     
@@ -443,28 +418,84 @@ document.addEventListener('DOMContentLoaded', () => {
             column.className = 'kanban-column';
             column.dataset.stage = stage;
             const dealsInStage = customers.filter(c => c.status === stage && c.product === 'Kredyty');
-            column.innerHTML = `
-                <div class="kanban-column-header">
-                    <span>${stage}</span>
-                    <span class="deal-count">${dealsInStage.length}</span>
-                </div>
-                <div class="kanban-cards">
-                    ${dealsInStage.map(deal => `
-                        <div class="kanban-card" data-id="${deal.id}" draggable="true">
-                            <p class="font-bold">${deal.name}</p>
-                            <p class="text-sm text-blue-400 mt-1">Wartość: ${(deal.caseValue || 0).toLocaleString('pl-PL')} PLN</p>
-                            <p class="text-sm text-green-400 font-semibold">Prowizja: ${(deal.commissionValue || 0).toLocaleString('pl-PL')} PLN</p>
-                            <div class="text-xs text-slate-400 mt-2">${deal.assignedTo || ''}</div>
-                        </div>`).join('')}
-                </div>`;
+            column.innerHTML = `<div class="kanban-column-header"><span>${stage}</span><span class="deal-count">${dealsInStage.length}</span></div><div class="kanban-cards">${dealsInStage.map(deal => `<div class="kanban-card" data-id="${deal.id}" draggable="true"><p class="font-bold">${deal.name}</p><p class="text-sm text-blue-400 mt-1">Wartość: ${(deal.caseValue||0).toLocaleString('pl-PL')} PLN</p><p class="text-sm text-green-400 font-semibold">Prowizja: ${(deal.commissionValue||0).toLocaleString('pl-PL')} PLN</p><div class="text-xs text-slate-400 mt-2">${deal.assignedTo||''}</div></div>`).join('')}</div>`;
             board.appendChild(column);
         });
         kanbanView.appendChild(board);
     };
     
     const renderReportsView = () => {
-        reportsView.innerHTML = `<h2 class="text-2xl font-bold">Raporty i Analityka</h2><p class="mt-2 text-slate-400">W przygotowaniu!</p>`;
-    };
+    // === 1. Analiza Danych ===
+    
+    // Definiujemy statusy oznaczające sukces
+    const successStatuses = ['wypłacony', 'klient wypłacony', 'Uruchomione'];
+    
+    // Grupujemy dane według źródła
+    const sourceStats = {};
+
+    customers.forEach(customer => {
+        const source = customer.source || 'Nieokreślone'; // Domyślna kategoria, jeśli źródło nie jest ustawione
+
+        // Inicjalizuj statystyki dla nowego źródła, jeśli jeszcze nie istnieje
+        if (!sourceStats[source]) {
+            sourceStats[source] = {
+                total: 0,
+                won: 0
+            };
+        }
+
+        sourceStats[source].total += 1; // Zwiększ łączną liczbę spraw
+
+        // Sprawdź, czy sprawa zakończyła się sukcesem
+        if (successStatuses.includes(customer.status)) {
+            sourceStats[source].won += 1;
+        }
+    });
+
+    // Przekształć obiekt w tablicę i oblicz konwersję
+    const reportData = Object.keys(sourceStats).map(source => {
+        const stats = sourceStats[source];
+        const conversionRate = stats.total > 0 ? ((stats.won / stats.total) * 100).toFixed(1) : 0;
+        return {
+            source,
+            total: stats.total,
+            won: stats.won,
+            conversionRate
+        };
+    }).sort((a, b) => b.total - a.total); // Sortuj od najpopularniejszych źródeł
+
+    // === 2. Generowanie HTML ===
+
+    const tableRowsHTML = reportData.map(row => `
+        <tr>
+            <td>${row.source}</td>
+            <td>${row.total}</td>
+            <td>${row.won}</td>
+            <td class="conversion-rate">${row.conversionRate}%</td>
+        </tr>
+    `).join('');
+
+    reportsView.innerHTML = `
+        <h2 class="text-2xl font-bold text-slate-100">Raporty</h2>
+        
+        <div class="widget mt-6">
+            <h3 class="widget-title">Skuteczność Źródeł Pozyskania Klientów</h3>
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Źródło</th>
+                        <th>Wszystkie Sprawy</th>
+                        <th>Sprawy Zakończone Sukcesem</th>
+                        <th>Konwersja</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRowsHTML.length > 0 ? tableRowsHTML : '<tr><td colspan="4" class="text-center">Brak danych do wygenerowania raportu.</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+    `;
+};
     
     const renderFilterMenu = () => { /* ... logika menu ... */ };
 
@@ -472,56 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const customer = customers.find(c => c.id === customerId);
         if (!customer) return;
         const tagsHTML = Object.keys(TAGS).map(tag => `<span class="tag ${TAGS[tag]} ${(customer.tags || []).includes(tag) ? 'selected' : ''}" data-tag="${tag}">${tag}</span>`).join('');
-        detailsContent.innerHTML = `
-            <div class="space-y-6">
-                <div class="bg-slate-700/50 p-6 rounded-lg">
-                    <div class="flex justify-between items-start mb-6">
-                        <div>
-                            <h2 class="text-3xl font-bold">${customer.name}</h2>
-                            <p class="text-lg text-slate-300">${customer.product || ''}</p>
-                            <div class="mt-2"><span class="text-sm font-semibold px-3 py-1 rounded-full ${getStatusColor(customer.status)}">${customer.status}</span></div>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button data-action="edit" data-id="${customer.id}" class="bg-slate-600 p-2 rounded-full">Edytuj</button>
-                            <button data-action="delete" data-id="${customer.id}" class="bg-red-900/50 p-2 rounded-full">Usuń</button>
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap gap-2" id="details-tags">${tagsHTML}</div>
-                </div>
-                <div class="bg-slate-700/50 p-6 rounded-lg">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                        <div>
-                            <h4 class="text-sm font-semibold text-slate-400">Wartość Sprawy</h4>
-                            <p class="text-lg font-bold text-blue-400">${customer.caseValue ? customer.caseValue.toLocaleString('pl-PL') + ' PLN' : 'Brak'}</p>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-semibold text-slate-400">Przewidywana prowizja</h4>
-                            <p class="text-lg font-bold text-green-400">${customer.commissionValue ? customer.commissionValue.toLocaleString('pl-PL') + ' PLN' : 'Brak'} (${customer.commissionRate || 0}%)</p>
-                        </div>
-                        <div><h4 class="text-sm font-semibold text-slate-400">Telefon</h4><p>${customer.phone || 'Brak'}</p></div>
-                        <div><h4 class="text-sm font-semibold text-slate-400">Email</h4><p>${customer.email || 'Brak'}</p></div>
-                        <div class="md:col-span-2"><h4 class="text-sm font-semibold text-slate-400">Źródło Kontaktu</h4><p>${customer.source || 'Brak'}</p></div>
-                    </div>
-                </div>
-                ${customer.task ? `
-                <div class="bg-slate-700/50 p-6 rounded-lg">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-semibold text-slate-400">Następne zadanie</h4>
-                            <p class="font-bold text-yellow-400">${customer.task}</p>
-                            <p class="text-sm text-slate-400">Termin: ${new Date(customer.nextContactDate + 'T00:00:00').toLocaleDateString('pl-PL')}</p>
-                        </div>
-                        <button data-action="complete-task" data-id="${customer.id}" class="bg-green-600/80 text-white text-sm font-bold py-2 px-3 rounded-lg">Wykonane</button>
-                    </div>
-                </div>` : ''}
-                <div class="bg-slate-700/50 p-6 rounded-lg">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">Historia Interakcji</h3>
-                        <button id="add-interaction-btn" data-id="${customer.id}" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Dodaj</button>
-                    </div>
-                    <div id="interaction-list" class="space-y-4"></div>
-                </div>
-            </div>`;
+        detailsContent.innerHTML = `<div class="space-y-6"><div class="bg-slate-700/50 p-6 rounded-lg"><div class="flex justify-between items-start mb-6"><div><h2 class="text-3xl font-bold">${customer.name}</h2><p class="text-lg text-slate-300">${customer.product||''}</p><div class="mt-2"><span class="text-sm font-semibold px-3 py-1 rounded-full ${getStatusColor(customer.status)}">${customer.status}</span></div></div><div class="flex space-x-2"><button data-action="edit" data-id="${customer.id}" class="bg-slate-600 p-2 rounded-full">Edytuj</button><button data-action="delete" data-id="${customer.id}" class="bg-red-900/50 p-2 rounded-full">Usuń</button></div></div><div class="flex flex-wrap gap-2" id="details-tags">${tagsHTML}</div></div><div class="bg-slate-700/50 p-6 rounded-lg"><div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6"><div><h4 class="text-sm font-semibold text-slate-400">Wartość Sprawy</h4><p class="text-lg font-bold text-blue-400">${customer.caseValue?customer.caseValue.toLocaleString('pl-PL')+' PLN':'Brak'}</p></div><div><h4 class="text-sm font-semibold text-slate-400">Przewidywana prowizja</h4><p class="text-lg font-bold text-green-400">${customer.commissionValue?customer.commissionValue.toLocaleString('pl-PL')+' PLN':'Brak'} (${customer.commissionRate||0}%)</p></div><div><h4 class="text-sm font-semibold text-slate-400">Telefon</h4><p>${customer.phone||'Brak'}</p></div><div><h4 class="text-sm font-semibold text-slate-400">Email</h4><p>${customer.email||'Brak'}</p></div><div class="md:col-span-2"><h4 class="text-sm font-semibold text-slate-400">Źródło Kontaktu</h4><p>${customer.source||'Brak'}</p></div></div></div>${customer.task?`<div class="bg-slate-700/50 p-6 rounded-lg"><div class="flex justify-between items-start"><div><h4 class="font-semibold text-slate-400">Następne zadanie</h4><p class="font-bold text-yellow-400">${customer.task}</p><p class="text-sm text-slate-400">Termin: ${new Date(customer.nextContactDate+'T00:00:00').toLocaleDateString('pl-PL')}</p></div><button data-action="complete-task" data-id="${customer.id}" class="bg-green-600/80 text-white text-sm font-bold py-2 px-3 rounded-lg">Wykonane</button></div></div>`:''}<div class="bg-slate-700/50 p-6 rounded-lg"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">Historia Interakcji</h3><button id="add-interaction-btn" data-id="${customer.id}" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Dodaj</button></div><div id="interaction-list" class="space-y-4"></div></div></div>`;
         const interactionList = detailsContent.querySelector('#interaction-list');
         (customer.interactions || []).sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(interaction => {
             const item = document.createElement('div');
@@ -533,11 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // === OBSŁUGA ZDARZEŃ ===
-    customerListView.addEventListener('change', (e) => {
-    if (e.target.id === 'sortBy' || e.target.id === 'filterProduct') {
-        renderCustomerListView();
-    }
-});
     const setupKanbanListeners = () => {
         kanbanView.addEventListener('dragstart', (e) => {
             if (e.target.classList.contains('kanban-card')) {
@@ -561,106 +538,102 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    mainNav.addEventListener('click', (e) => {
-        const btn = e.target.closest('.view-btn');
-        if (btn) showView(btn.dataset.view);
-    });
-
-    customerListView.addEventListener('click', (e) => {
-        const card = e.target.closest('.customer-card');
-        if (card) showDetails(card.dataset.id);
-    });
-    
-    dashboardView.addEventListener('click', (e) => {
-        const link = e.target.closest('.task-customer-link');
-        if (link) showDetails(link.dataset.id);
-    });
+    mainNav.addEventListener('click', (e) => { if (e.target.closest('.view-btn')) showView(e.target.closest('.view-btn').dataset.view); });
+    customerListView.addEventListener('click', (e) => { if (e.target.closest('.customer-card')) showDetails(e.target.closest('.customer-card').dataset.id); });
+    customerListControls.addEventListener('change', () => renderCustomerListView());
+    dashboardView.addEventListener('click', (e) => { if (e.target.closest('.task-customer-link')) showDetails(e.target.closest('.task-customer-link').dataset.id); });
     
     detailsContainer.addEventListener('click', (e) => {
         const tag = e.target.closest('.tag');
         const btn = e.target.closest('button');
         if (tag) {
-            const customerId = detailsContent.querySelector('button[data-action=edit]').dataset.id;
-            const customer = customers.find(c => c.id === customerId);
+            const customer = customers.find(c => c.id === detailsContent.querySelector('button[data-action=edit]').dataset.id);
             if (!customer) return;
             customer.tags = customer.tags || [];
-            const tagName = tag.dataset.tag;
-            const tagIndex = customer.tags.indexOf(tagName);
-            if (tagIndex > -1) customer.tags.splice(tagIndex, 1);
-            else customer.tags.push(tagName);
-            showDetails(customerId);
+            const tagIndex = customer.tags.indexOf(tag.dataset.tag);
+            if (tagIndex > -1) customer.tags.splice(tagIndex, 1); else customer.tags.push(tag.dataset.tag);
+            showDetails(customer.id);
             render();
             return;
         }
-
         if (btn?.id === 'add-interaction-btn') {
             interactionForm.reset();
             getEl('interaction-customer-id').value = btn.dataset.id;
             openModal(interactionModal);
             return;
         }
-
         if (btn?.dataset.action) {
-            const { action, id } = btn.dataset;
-            const customer = customers.find(c => c.id === id);
+            const customer = customers.find(c => c.id === btn.dataset.id);
             if (!customer) return;
+            const { action } = btn.dataset;
             if (action === 'edit') {
                 getEl('modal-title').textContent = 'Edytuj Sprawę';
                 getEl('customer-id').value = customer.id;
-                ['name', 'phone', 'email', 'product', 'status', 'caseValue', 'broksa', 'commissionRate', 'commissionValue', 'source', 'assignedTo', 'task', 'nextContactDate'].forEach(field => {
-                    getEl(field).value = customer[field] || '';
-                });
+                Object.keys(customer).forEach(key => { if(getEl(key)) getEl(key).value = customer[key] || ''; });
                 updateStatusOptions();
-                statusSelect.value = customer.status; // Upewnij się, że status jest ustawiony po aktualizacji opcji
+                statusSelect.value = customer.status;
                 openModal(customerModal);
             } else if (action === 'delete' && confirm(`Na pewno usunąć ${customer.name}?`)) {
-                customers = customers.filter(c => c.id !== id);
+                customers = customers.filter(c => c.id !== customer.id);
                 closeModal(detailsContainer);
                 render();
             } else if (action === 'complete-task') {
                 customer.task = '';
                 customer.nextContactDate = '';
-                showDetails(id);
+                showDetails(customer.id);
                 render();
             }
         }
     });
     
     customerForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const id = getEl('customer-id').value;
-        const data = { 
-            name: getEl('name').value, phone: getEl('phone').value, email: getEl('email').value, 
-            product: getEl('product').value, status: getEl('status').value, 
-            caseValue: parseFloat(getEl('caseValue').value) || 0, broksa: parseFloat(getEl('broksa').value) || 0,
-            commissionRate: parseFloat(getEl('commissionRate').value) || 0, commissionValue: parseFloat(getEl('commissionValue').value) || 0,
-            source: getEl('source').value, assignedTo: getEl('assignedTo').value,
-            task: getEl('task').value, nextContactDate: getEl('nextContactDate').value
-        };
-        if (id) {
-            const index = customers.findIndex(c => c.id === id);
-            if (index > -1) customers[index] = { ...customers[index], ...data };
-        } else {
-            customers.push({ ...data, id: `cust_${Date.now()}`, addedDate: new Date().toISOString(), interactions: [], tags: [] });
-        }
-        closeModal(customerModal);
-        render();
-    });
+    e.preventDefault();
+    const id = getEl('customer-id').value;
+    
+    const data = { 
+        name: getEl('name').value, 
+        phone: getEl('phone').value, 
+        email: getEl('email').value, 
+        product: getEl('product').value, 
+        status: getEl('status').value, 
+        caseValue: parseFloat(getEl('caseValue').value) || 0,
+        broksa: parseFloat(getEl('broksa').value) || 0,
+        source: getEl('source').value,
+        assignedTo: getEl('assignedTo').value,
+        nextContactDate: getEl('nextContactDate').value,
+        commissionRate: parseFloat(getEl('commissionRate').value) || 0,
+        commissionValue: parseFloat(getEl('commissionValue').value) || 0,
+
+        // --- ZMIANY SĄ TUTAJ ---
+        // Usunęliśmy stare pole "task" i dodaliśmy te trzy:
+        taskDescription: getEl('taskDescription').value,
+        taskType: getEl('taskType').value,
+        taskPriority: getEl('taskPriority').value
+    };
+
+    if (id) {
+        const index = customers.findIndex(c => c.id === id);
+        if (index > -1) customers[index] = { ...customers[index], ...data };
+    } else {
+        customers.push({ ...data, id: `cust_${Date.now()}`, addedDate: new Date().toISOString(), interactions: [], tags: [] });
+    }
+    
+    closeModal(customerModal);
+    render();
+});
 
     interactionForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const customerId = getEl('interaction-customer-id').value;
-        const customer = customers.find(c => c.id === customerId);
+        const customer = customers.find(c => c.id === getEl('interaction-customer-id').value);
         if(customer){
-            const newInteraction = {
+            customer.interactions = customer.interactions || [];
+            customer.interactions.push({
                 type: getEl('interaction-type').value,
                 notes: getEl('interaction-notes').value,
                 date: new Date().toISOString()
-            };
-            customer.interactions = customer.interactions || [];
-            customer.interactions.push(newInteraction);
+            });
             closeModal(interactionModal);
-            showDetails(customerId);
+            showDetails(customer.id);
             saveCustomers();
         }
     });
@@ -680,9 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
         openModal(customerModal);
     });
     
-    closeDetailsBtn.addEventListener('click', () => closeModal(detailsContainer));
-    cancelCustomerBtn.addEventListener('click', () => closeModal(customerModal));
-    cancelInteractionBtn.addEventListener('click', () => closeModal(interactionModal));
+    [closeDetailsBtn, cancelCustomerBtn, cancelInteractionBtn].forEach(btn => btn.addEventListener('click', () => closeModal(btn.closest('.modal, #customer-details-container'))));
     productSelect.addEventListener('change', updateStatusOptions);
 
     // === INICJALIZACJA ===
